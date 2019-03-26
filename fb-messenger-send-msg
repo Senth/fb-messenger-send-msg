@@ -32,7 +32,7 @@ driver = webdriver.Chrome("/usr/bin/chromedriver", chrome_options=chrome_options
 
 def random_user_delay():
     """Delays the script by a random amount to make us pass for a human"""
-    delay = random.random() * 1.0 + 1.0
+    delay = random.random() * 10.0 + 3.0
     time.sleep(delay)
 
 
@@ -99,7 +99,7 @@ def send_message(uid, message):
     random_user_delay()
 
     send_button = driver.find_element_by_xpath('//input[@value="Send"]')
-    send_button.sumbit()
+    send_button.submit()
 
 
 
