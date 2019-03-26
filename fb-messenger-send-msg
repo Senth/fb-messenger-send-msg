@@ -1,0 +1,110 @@
+#!/usr/bin/python
+
+from selenium import webdriver
+from selenium.common.exceptions import ElementNotInteractableException
+from selenium.common.exceptions import ElementNotVisibleException
+from selenium.common.exceptions import NoSuchElementException
+import sys
+import time
+import random
+import argparse
+import re
+
+import config
+
+
+parser = argparse.ArgumentParser(description='Send a message through FB messenger')
+parser.add_argument('friend_name', help='Full name of the friend to send the message to')
+parser.add_argument('message', help='The message to send')
+args = parser.parse_args()
+
+random.seed(time.time())
+
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+chrome_options.add_argument('--headless')
+chrome_options.add_argument('--lang=en-us')
+  
+prefs = {"profile.default_content_setting_values.notifications": 2} 
+chrome_options.add_experimental_option("prefs", prefs) 
+driver = webdriver.Chrome("/usr/bin/chromedriver", chrome_options=chrome_options) 
+
+def random_user_delay():
+    """Delays the script by a random amount to make us pass for a human"""
+    delay = random.random() * 1.0 + 1.0
+    time.sleep(delay)
+
+
+# open facebook.com using get() method 
+driver.get('https://mbasic.facebook.com/')
+random_user_delay()
+
+element = driver.find_elements_by_xpath('//*[@id="m_login_email"]') 
+element[0].send_keys(config.email) 
+print("Username Entered") 
+random_user_delay()
+  
+element = driver.find_element_by_xpath('//*[@name="pass"]') 
+element.send_keys(config.password) 
+print("Password Entered") 
+random_user_delay()
+
+# logging in 
+log_in = driver.find_elements_by_xpath('//*[@name="login"]') 
+log_in[0].click() 
+print("Login Successfull") 
+random_user_delay()
+
+# Find friend id by name
+def find_friend_id(friend_name):
+    driver.get('https://mbasic.facebook.com/friends/center/friends/?mff_nav=1')
+    random_user_delay()
+    page = 0
+    friend_uid = None
+    
+
+    while friend_uid == None:
+        print("Searching for friend on page " + str(page))
+        friend_elements = driver.find_elements_by_xpath('//a[@class="bq"]')
+        for friend_element in friend_elements:
+            name = friend_element.text
+
+            # Get id from href url
+            if name == friend_name:
+                href = friend_element.get_attribute('href')
+                match = re.search('uid=(\d*)', href)
+                friend_uid = match.group(1)
+                print('Found uid: ' + friend_uid)
+                return friend_uid
+
+        # Search for friend on the next page
+        try:
+            driver.find_element_by_xpath('//div[@id="u_0_0"]')
+        except NoSuchElementException:
+            print("Didn't find friend " + friend_name)
+            sys.exit(0)
+
+        page += 1
+        driver.get('https://mbasic.facebook.com/friends/center/friends/?ppk=' + str(page) + '&tid=u_0_0&bph=' + str(page) + '#friends_center_main')
+        random_user_delay()
+
+
+def send_message(uid, message):
+    driver.get('https://mbasic.facebook.com/messages/read/?fbid=' + uid + '&_rdr')
+    random_user_delay()
+
+    textarea = driver.find_element_by_tag_name('textarea')
+    textarea.send_keys(message)
+    random_user_delay()
+
+    send_button = driver.find_element_by_xpath('//input[@value="Send"]')
+    send_button.sumbit()
+
+
+
+friend_uid = find_friend_id(args.friend_name)
+send_message(friend_uid, args.message)
+
+driver.quit()
+print('Done!')
